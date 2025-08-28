@@ -1,0 +1,2266 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Prospecção - Mapa de Distâncias</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+        
+        /* Menu Lateral */
+        .sidebar {
+            width: 350px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            background: rgba(0,0,0,0.1);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .sidebar-header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .sidebar-header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .control-group {
+            margin-bottom: 25px;
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.9;
+        }
+        
+        select, input[type="number"], input[type="range"] {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            font-size: 14px;
+        }
+        
+        select:focus, input:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.3);
+        }
+        
+        .radio-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        
+        .radio-group label {
+            display: flex;
+            align-items: center;
+            font-weight: normal;
+            font-size: 14px;
+            text-transform: none;
+            cursor: pointer;
+        }
+        
+        .radio-group input[type="radio"] {
+            width: auto;
+            margin-right: 8px;
+        }
+        
+        .slider-container {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        input[type="range"] {
+            flex: 1;
+            padding: 0;
+            height: 5px;
+            background: rgba(255,255,255,0.3);
+            cursor: pointer;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        input[type="number"] {
+            width: 80px;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            background: white;
+            color: #667eea;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background: rgba(255,255,255,0.9);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Lista de Clientes */
+        .clients-list {
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 15px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .clients-list h3 {
+            margin-bottom: 15px;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
+        }
+        
+        #all-clients-container {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 200px;
+        }
+        
+        #clients-container {
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        
+        .client-item {
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+        }
+        
+        .client-item:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .client-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .client-name {
+            font-weight: 500;
+            margin-bottom: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .client-distance {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        
+        .client-distance-calc {
+            margin-top: 2px;
+        }
+        
+        .client-actions {
+            display: flex;
+            gap: 3px;
+            flex-shrink: 0;
+        }
+        
+        .client-actions button {
+            padding: 5px 8px;
+            font-size: 12px;
+            flex: none;
+            min-width: 28px;
+        }
+        
+        /* Mapa */
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Painel de Diagnóstico */
+        .diagnostics-panel {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 400px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .diagnostics-panel.active {
+            display: block;
+        }
+        
+        .diagnostics-toggle {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 999;
+            transition: all 0.3s;
+        }
+        
+        .diagnostics-toggle:hover {
+            transform: scale(1.1);
+        }
+        
+        .diagnostic-item {
+            margin-bottom: 10px;
+            padding: 8px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: monospace;
+        }
+        
+        .diagnostic-item.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .diagnostic-item.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .diagnostic-item.warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        /* Loading */
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            display: none;
+        }
+        
+        .loading.active {
+            display: flex;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid white;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+                transform: scale(1);
+            }
+            50% {
+                box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+                transform: scale(1.05);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+                transform: scale(1);
+            }
+        }
+        
+        /* Scrollbar personalizada */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.3);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.5);
+        }
+        
+        /* Filtros Multi-select */
+        .filter-checkbox-list {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        
+        .filter-checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 4px;
+            border-radius: 3px;
+            transition: background 0.2s;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        
+        .filter-checkbox-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .filter-checkbox-item input[type="checkbox"] {
+            margin-right: 8px;
+            cursor: pointer;
+        }
+        
+        .filter-checkbox-item .banco-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            border: 1px solid white;
+        }
+        
+        .filter-checkbox-item .count {
+            margin-left: auto;
+            opacity: 0.7;
+            font-size: 11px;
+        }
+        
+        /* Legenda do Mapa */
+        .map-legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            max-width: 250px;
+        }
+        
+        .map-legend h4 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 2px solid white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        
+        .legend-stats {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <!-- Menu Lateral -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h1>🗺️ Prospecção</h1>
+            <p>Sistema de Análise Geográfica</p>
+        </div>
+        
+        <div class="sidebar-content">
+            <div class="control-group">
+                <label for="filtros-banco">🏦 Filtrar por Banco</label>
+                <div class="multi-select-container">
+                    <input type="text" id="search-banco" placeholder="Buscar banco..." 
+                           style="width: 100%; padding: 6px; margin-bottom: 5px; border-radius: 4px; 
+                                  border: none; background: rgba(255,255,255,0.9); color: #333; font-size: 13px;">
+                    <div id="bancos-list" class="filter-checkbox-list" style="max-height: 120px; overflow-y: auto; 
+                                                                               background: rgba(255,255,255,0.05); 
+                                                                               border-radius: 4px; padding: 5px;">
+                        <!-- Preenchido dinamicamente -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <label for="filtros-uf">📍 Filtrar por UF/Município</label>
+                <div class="multi-select-container">
+                    <select id="select-uf" style="width: 100%; margin-bottom: 5px;">
+                        <option value="">Todos os Estados</option>
+                        <!-- Preenchido dinamicamente -->
+                    </select>
+                    <input type="text" id="search-municipio" placeholder="Buscar município..." 
+                           style="width: 100%; padding: 6px; margin-bottom: 5px; border-radius: 4px; 
+                                  border: none; background: rgba(255,255,255,0.9); color: #333; font-size: 13px;">
+                    <div id="municipios-list" class="filter-checkbox-list" style="max-height: 100px; overflow-y: auto; 
+                                                                                   background: rgba(255,255,255,0.05); 
+                                                                                   border-radius: 4px; padding: 5px;">
+                        <!-- Preenchido dinamicamente -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <label for="agencia-select">📍 Agência Base</label>
+                <select id="agencia-select">
+                    <option value="">Selecione uma agência...</option>
+                </select>
+                <div id="agencias-selecionadas" style="margin-top: 5px; font-size: 11px; opacity: 0.8;">
+                    <!-- Mostra contagem de agências filtradas -->
+                </div>
+                <p style="font-size: 11px; opacity: 0.8; margin-top: 5px;">
+                    Selecione uma agência para calcular distâncias e rotas
+                </p>
+            </div>
+            
+            <div class="control-group">
+                <label>🎯 Filtro por Raio (km)</label>
+                <div class="slider-container">
+                    <input type="range" id="raio-slider" min="1" max="100" value="10">
+                    <input type="number" id="raio-input" min="1" max="100" value="10">
+                </div>
+                <p style="font-size: 11px; opacity: 0.8; margin-top: 5px;">
+                    Defina um raio para filtrar clientes próximos à agência
+                </p>
+            </div>
+            
+            <div class="control-group">
+                <div class="buttons">
+                    <button id="aplicar-raio">🎯 Aplicar Raio</button>
+                    <button id="exportar-csv">📥 Exportar CSV</button>
+                    <button id="limpar-selecao">🗑️ Limpar</button>
+                </div>
+            </div>
+            
+            <div class="clients-list" id="clients-list">
+                <h3>📍 Todos os Clientes</h3>
+                <div class="filter-section" style="margin-bottom: 10px;">
+                    <input type="text" id="search-clients" placeholder="🔍 Buscar cliente..." 
+                           style="width: 100%; padding: 8px; border-radius: 5px; border: none; 
+                                  background: rgba(255,255,255,0.9); color: #333; font-size: 14px;">
+                </div>
+                <div style="font-size: 11px; opacity: 0.8; margin-bottom: 10px; padding: 5px; background: rgba(255,255,255,0.05); border-radius: 5px;">
+                    <strong>Ações:</strong> 👁️ Ver no mapa | 📏 Distância direta | 🛣️ Rota de carro
+                </div>
+                <div id="all-clients-container" style="max-height: 200px; overflow-y: auto; margin-bottom: 15px;"></div>
+                
+                <h3 id="filtered-title" style="display: none;">✅ Clientes no Raio</h3>
+                <div id="clients-container"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Container do Mapa -->
+    <div class="map-container">
+        <div id="map"></div>
+        
+        <!-- Legenda do Mapa -->
+        <div class="map-legend" id="map-legend">
+            <h4>🏦 Legenda de Bancos</h4>
+            <div id="legend-content">
+                <!-- Preenchido dinamicamente -->
+            </div>
+            <div class="legend-stats" id="legend-stats">
+                <!-- Estatísticas -->
+            </div>
+        </div>
+        
+        <button class="diagnostics-toggle" id="diagnostics-toggle">🔧</button>
+        <div class="diagnostics-panel" id="diagnostics-panel">
+            <h3 style="margin-bottom: 15px;">📊 Diagnóstico</h3>
+            <div id="diagnostics-content"></div>
+        </div>
+    </div>
+    
+    <!-- Loading -->
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+    </div>
+    
+    <!-- Scripts (ordem específica) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <script>
+        // Aguardar carregamento completo das bibliotecas
+        window.addEventListener('DOMContentLoaded', async () => {
+            // Verificar bibliotecas
+            if (typeof L === 'undefined' || typeof Papa === 'undefined' || typeof XLSX === 'undefined') {
+                console.error('Erro ao carregar bibliotecas necessárias');
+                addDiagnostic('Erro ao carregar bibliotecas', 'error');
+                return;
+            }
+            
+            // Estado Global
+            const state = {
+                map: null,
+                agencias: [],
+                agenciasFiltradas: [],
+                clientes: [],
+                agenciaAtual: null,
+                clientesFiltrados: [],
+                marcadores: {
+                    agencias: L.layerGroup(),
+                    clientes: L.layerGroup(),
+                    circulo: null,
+                    linhas: L.layerGroup(),
+                    rotas: L.layerGroup()
+                },
+                cache: {
+                    ibge: new Map(),
+                    rotas: new Map()
+                },
+                filtros: {
+                    bancos: [],
+                    ufs: [],
+                    municipios: []
+                },
+                cores: {
+                    bancos: {} // Cores atribuídas dinamicamente por banco
+                }
+            };
+            
+            // Paleta de cores para os bancos
+            const paletaCores = [
+                '#DC083E', '#E77515', '#ED0808', '#96CEB4', '#FFEAA7',
+                '#DDA0DD', '#98D8C8', '#F7DC6F', '#85C1E2', '#F8B739',
+                '#52B788', '#E56B6F', '#6C5CE7', '#00B894', '#FDCB6E',
+                '#6C63FF', '#FF6B9D', '#C44569', '#2ECC71', '#E74C3C'
+            ];
+            
+            // Inicializar mapa
+            function initMap() {
+                state.map = L.map('map').setView([-23.5505, -46.6333], 10);
+                
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors',
+                    maxZoom: 19
+                }).addTo(state.map);
+                
+                // Adicionar grupos de camadas
+                state.marcadores.agencias.addTo(state.map);
+                state.marcadores.clientes.addTo(state.map);
+                state.marcadores.linhas.addTo(state.map);
+                state.marcadores.rotas.addTo(state.map);
+            }
+            
+            // Diagnóstico
+            function addDiagnostic(message, type = 'info') {
+                const panel = document.getElementById('diagnostics-content');
+                const item = document.createElement('div');
+                item.className = `diagnostic-item ${type}`;
+                item.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+                panel.appendChild(item);
+                
+                // Auto-scroll
+                panel.scrollTop = panel.scrollHeight;
+            }
+            
+            // Parser robusto de coordenadas
+            function parseCoordinate(value) {
+                if (!value && value !== 0) return null;
+                
+                // Converter para string
+                let str = String(value).trim();
+                
+                // Remover BOM e caracteres invisíveis
+                str = str.replace(/^\uFEFF/, '').replace(/[\u200B-\u200D\uFEFF]/g, '');
+                
+                // Substituir diferentes tipos de "menos" por hífen padrão
+                str = str.replace(/[−–—﹣－]/g, '-');
+                
+                // Remover espaços
+                str = str.replace(/\s/g, '');
+                
+                // Tratar múltiplos pontos (separadores de milhar incorretos)
+                // Manter apenas o primeiro ponto como decimal
+                const pontos = str.split('.');
+                if (pontos.length > 2) {
+                    str = pontos[0] + '.' + pontos.slice(1).join('');
+                }
+                
+                // Substituir vírgula por ponto (decimal)
+                str = str.replace(',', '.');
+                
+                // Remover caracteres não numéricos (exceto ponto e menos)
+                str = str.replace(/[^0-9.\-]/g, '');
+                
+                const num = parseFloat(str);
+                
+                if (isNaN(num)) return null;
+                
+                return num;
+            }
+            
+            // Validar e corrigir coordenadas
+            function validateCoordinates(lat, lon) {
+                lat = parseCoordinate(lat);
+                lon = parseCoordinate(lon);
+                
+                if (lat === null || lon === null) return null;
+                
+                // Verificar se precisa fazer swap
+                if (Math.abs(lat) > 90 && Math.abs(lon) <= 90) {
+                    [lat, lon] = [lon, lat];
+                    addDiagnostic(`Swap de coordenadas: lat=${lat}, lon=${lon}`, 'warning');
+                }
+                
+                // Validar faixas
+                if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+                    return null;
+                }
+                
+                return { lat, lon };
+            }
+            
+            // Normalizar nome de coluna
+            function normalizeColumnName(name) {
+                if (!name) return '';
+                return name.toString()
+                    .toLowerCase()
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+                    .replace(/[^a-z0-9]/g, '_') // Substitui caracteres especiais
+                    .replace(/_+/g, '_') // Remove underscores duplos
+                    .replace(/^_|_$/g, ''); // Remove underscores no início/fim
+            }
+            
+            // Mapear colunas automaticamente
+            function mapColumns(headers) {
+                const mapping = {};
+                const synonyms = {
+                    nome: ['nome', 'name', 'agencia', 'nome_agencia', 'cliente', 'razao_social', 'empresa'],
+                    latitude: ['lat', 'latitude', 'coord_y', 'y', 'lat_y'],
+                    longitude: ['lon', 'lng', 'longitude', 'coord_x', 'x', 'long', 'lon_x'],
+                    cod_mun_ibge: ['cod_mun_ibge', 'codigo_municipio_ibge', 'ibge', 'cod_ibge', 'codigo_ibge'],
+                    banco: ['banco', 'bank', 'instituicao', 'nome_banco', 'banco_nome'],
+                    uf: ['uf', 'estado_sigla', 'state', 'estado_uf'],
+                    estado: ['estado', 'estado_nome', 'state_name'],
+                    municipio: ['municipio', 'cidade', 'city', 'municipio_nome', 'nome_municipio']
+                };
+                
+                headers.forEach((header, index) => {
+                    const normalized = normalizeColumnName(header);
+                    
+                    for (const [key, syns] of Object.entries(synonyms)) {
+                        if (syns.some(syn => normalized.includes(syn))) {
+                            mapping[key] = index;
+                            break;
+                        }
+                    }
+                });
+                
+                addDiagnostic(`Mapeamento: ${JSON.stringify(mapping)}`, 'success');
+                return mapping;
+            }
+            
+            // Buscar centróide via IBGE
+            async function getCentroideIBGE(codMun) {
+                if (!codMun || codMun.length !== 7) return null;
+                
+                // Verificar cache
+                if (state.cache.ibge.has(codMun)) {
+                    return state.cache.ibge.get(codMun);
+                }
+                
+                try {
+                    const url = `https://servicodados.ibge.gov.br/api/v3/malhas/municipios/${codMun}?formato=application/vnd.geo+json&qualidade=minima`;
+                    const response = await fetch(url);
+                    
+                    if (!response.ok) return null;
+                    
+                    const geoJson = await response.json();
+                    const coords = geoJson.features[0].geometry.coordinates;
+                    
+                    // Calcular centróide simples
+                    let sumLat = 0, sumLon = 0, count = 0;
+                    
+                    function processCoords(coordArray) {
+                        if (Array.isArray(coordArray[0])) {
+                            coordArray.forEach(processCoords);
+                        } else {
+                            sumLon += coordArray[0];
+                            sumLat += coordArray[1];
+                            count++;
+                        }
+                    }
+                    
+                    processCoords(coords);
+                    
+                    const centroid = {
+                        lat: sumLat / count,
+                        lon: sumLon / count
+                    };
+                    
+                    // Cachear
+                    state.cache.ibge.set(codMun, centroid);
+                    
+                    addDiagnostic(`Centróide IBGE ${codMun}: ${centroid.lat}, ${centroid.lon}`, 'success');
+                    return centroid;
+                    
+                } catch (error) {
+                    addDiagnostic(`Erro IBGE ${codMun}: ${error.message}`, 'error');
+                    return null;
+                }
+            }
+            
+            // Processar dados (CSV/XLSX/JSON)
+            async function processData(content, filename, type) {
+                let data = [];
+                let headers = [];
+                
+                try {
+                    if (filename.toLowerCase().endsWith('.json')) {
+                        // JSON
+                        const jsonData = JSON.parse(content);
+                        data = Array.isArray(jsonData) ? jsonData : [jsonData];
+                        if (data.length > 0) {
+                            headers = Object.keys(data[0]);
+                        }
+                    } else if (filename.toLowerCase().endsWith('.xlsx') || filename.toLowerCase().endsWith('.xls')) {
+                        // Excel
+                        const workbook = XLSX.read(content, { type: 'array' });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                        
+                        if (jsonData.length > 0) {
+                            headers = jsonData[0];
+                            data = jsonData.slice(1).map(row => {
+                                const obj = {};
+                                headers.forEach((h, i) => {
+                                    obj[h] = row[i];
+                                });
+                                return obj;
+                            });
+                        }
+                    } else {
+                        // CSV
+                        const result = Papa.parse(content, {
+                            header: true,
+                            dynamicTyping: true,
+                            skipEmptyLines: true,
+                            delimitersToGuess: [',', '\t', '|', ';']
+                        });
+                        
+                        data = result.data;
+                        headers = result.meta.fields || [];
+                    }
+                    
+                    if (headers.length === 0 || data.length === 0) {
+                        addDiagnostic(`Arquivo vazio: ${filename}`, 'warning');
+                        return [];
+                    }
+                    
+                    addDiagnostic(`Headers detectados: ${headers.join(', ')}`, 'info');
+                    
+                    // Mapear colunas
+                    const mapping = mapColumns(headers);
+                    
+                    // Processar registros
+                    const processed = [];
+                    let validCount = 0;
+                    let invalidCount = 0;
+                    let ibgeCount = 0;
+                    
+                    for (const row of data) {
+                        const item = {
+                            nome: '',
+                            lat: null,
+                            lon: null,
+                            banco: '',
+                            uf: '',
+                            estado: '',
+                            municipio: '',
+                            original: row
+                        };
+                        
+                        // Extrair nome
+                        if (mapping.nome !== undefined) {
+                            const valor = headers[mapping.nome];
+                            item.nome = row[valor] || '';
+                        }
+                        
+                        // Extrair banco, uf, estado, municipio
+                        if (mapping.banco !== undefined) {
+                            item.banco = row[headers[mapping.banco]] || '';
+                        }
+                        if (mapping.uf !== undefined) {
+                            item.uf = row[headers[mapping.uf]] || '';
+                        }
+                        if (mapping.estado !== undefined) {
+                            item.estado = row[headers[mapping.estado]] || '';
+                        }
+                        if (mapping.municipio !== undefined) {
+                            item.municipio = row[headers[mapping.municipio]] || '';
+                        }
+                        
+                        // Extrair coordenadas
+                        if (mapping.latitude !== undefined && mapping.longitude !== undefined) {
+                            const latValue = row[headers[mapping.latitude]];
+                            const lonValue = row[headers[mapping.longitude]];
+                            
+                            const coords = validateCoordinates(latValue, lonValue);
+                            if (coords) {
+                                item.lat = coords.lat;
+                                item.lon = coords.lon;
+                            }
+                        }
+                        
+                        // Tentar IBGE se não tiver coordenadas
+                        if (!item.lat && !item.lon && mapping.cod_mun_ibge !== undefined) {
+                            const codMun = String(row[headers[mapping.cod_mun_ibge]] || '').trim();
+                            if (codMun.length === 7) {
+                                const centroid = await getCentroideIBGE(codMun);
+                                if (centroid) {
+                                    item.lat = centroid.lat;
+                                    item.lon = centroid.lon;
+                                    item.fonte = 'IBGE';
+                                    ibgeCount++;
+                                }
+                            }
+                        }
+                        
+                        if (item.lat !== null && item.lon !== null) {
+                            processed.push(item);
+                            validCount++;
+                        } else {
+                            invalidCount++;
+                        }
+                    }
+                    
+                    addDiagnostic(`${type}: ${validCount} válidos, ${invalidCount} inválidos, ${ibgeCount} via IBGE`, 'success');
+                    
+                    return processed;
+                    
+                } catch (error) {
+                    addDiagnostic(`Erro processando ${filename}: ${error.message}`, 'error');
+                    return [];
+                }
+            }
+            
+            // Carregar arquivo
+            async function loadFile(path) {
+                try {
+                    const response = await fetch(path);
+                    addDiagnostic(`GET ${path}: ${response.status} ${response.statusText}`, response.ok ? 'success' : 'error');
+                    
+                    if (!response.ok) return null;
+                    
+                    if (path.toLowerCase().endsWith('.xlsx') || path.toLowerCase().endsWith('.xls')) {
+                        return await response.arrayBuffer();
+                    } else {
+                        return await response.text();
+                    }
+                } catch (error) {
+                    addDiagnostic(`Erro carregando ${path}: ${error.message}`, 'error');
+                    return null;
+                }
+            }
+            
+            // Carregar dados
+            async function loadData() {
+                showLoading(true);
+                
+                addDiagnostic('=== INICIANDO CARREGAMENTO DE DADOS ===', 'info');
+                
+                // Verificar querystring
+                const params = new URLSearchParams(window.location.search);
+                const mesuOverride = params.get('mesu');
+                const clientesOverride = params.get('clientes');
+                
+                if (mesuOverride) {
+                    addDiagnostic(`Override MESU: ${mesuOverride}`, 'info');
+                }
+                if (clientesOverride) {
+                    addDiagnostic(`Override Clientes: ${clientesOverride}`, 'info');
+                }
+                
+                // Caminhos para tentar
+                let mesuPaths = mesuOverride ? [mesuOverride] : [
+                    '/dados/mesu.csv', '/dados/MESU.csv',
+                    '/dados/mesu.xlsx', '/dados/MESU.xlsx',
+                    '/dados/agencias.csv', '/dados/Agencias.csv',
+                    '/dados/agencias.xlsx', '/dados/Agencias.xlsx',
+                    '/dados/mesu.json', '/dados/agencias.json',
+                    'dados/mesu.csv', 'dados/MESU.csv',
+                    'dados/mesu.xlsx', 'dados/MESU.xlsx',
+                    'dados/agencias.csv', 'dados/Agencias.csv',
+                    'dados/agencias.xlsx', 'dados/Agencias.xlsx',
+                    'dados/mesu.json', 'dados/agencias.json',
+                    './dados/mesu.csv', './dados/MESU.csv'
+                ];
+                
+                let clientesPaths = clientesOverride ? [clientesOverride] : [
+                    '/dados/clientes.csv', '/dados/Clientes.csv',
+                    '/dados/clientes.xlsx', '/dados/Clientes.xlsx',
+                    '/dados/clientes.json',
+                    'dados/clientes.csv', 'dados/Clientes.csv',
+                    'dados/clientes.xlsx', 'dados/Clientes.xlsx',
+                    'dados/clientes.json',
+                    './dados/clientes.csv', './dados/Clientes.csv'
+                ];
+                
+                // Carregar agências
+                addDiagnostic('Buscando arquivos de agências...', 'info');
+                for (const path of mesuPaths) {
+                    const content = await loadFile(path);
+                    if (content) {
+                        state.agencias = await processData(content, path, 'Agências');
+                        if (state.agencias.length > 0) {
+                            addDiagnostic(`✓ Agências carregadas de: ${path}`, 'success');
+                            break;
+                        }
+                    }
+                }
+                
+                // Carregar clientes
+                addDiagnostic('Buscando arquivos de clientes...', 'info');
+                for (const path of clientesPaths) {
+                    const content = await loadFile(path);
+                    if (content) {
+                        state.clientes = await processData(content, path, 'Clientes');
+                        if (state.clientes.length > 0) {
+                            addDiagnostic(`✓ Clientes carregados de: ${path}`, 'success');
+                            break;
+                        }
+                    }
+                }
+                
+                // Se não encontrou dados, usar exemplos mais completos
+                if (state.agencias.length === 0) {
+                    addDiagnostic('Nenhum arquivo de agências encontrado. Usando dados de exemplo.', 'warning');
+                    state.agencias = [
+                        { nome: 'Agência Centro SP', lat: -23.5505, lon: -46.6333, banco: 'Bradesco', uf: 'SP', estado: 'São Paulo', municipio: 'São Paulo' },
+                        { nome: 'Agência Osasco', lat: -23.5320, lon: -46.7797, banco: 'Bradesco', uf: 'SP', estado: 'São Paulo', municipio: 'Osasco' },
+                        { nome: 'Agência Guarulhos', lat: -23.4543, lon: -46.5337, banco: 'Itaú', uf: 'SP', estado: 'São Paulo', municipio: 'Guarulhos' },
+                        { nome: 'Agência Santo André', lat: -23.6742, lon: -46.5436, banco: 'Santander', uf: 'SP', estado: 'São Paulo', municipio: 'Santo André' },
+                        { nome: 'Agência Barueri', lat: -23.5052, lon: -46.8766, banco: 'Banco do Brasil', uf: 'SP', estado: 'São Paulo', municipio: 'Barueri' },
+                        { nome: 'Agência Campinas', lat: -22.9099, lon: -47.0626, banco: 'Caixa', uf: 'SP', estado: 'São Paulo', municipio: 'Campinas' },
+                        { nome: 'Agência Santos', lat: -23.9618, lon: -46.3322, banco: 'Bradesco', uf: 'SP', estado: 'São Paulo', municipio: 'Santos' },
+                        { nome: 'Agência Rio Centro', lat: -22.9068, lon: -43.1729, banco: 'Itaú', uf: 'RJ', estado: 'Rio de Janeiro', municipio: 'Rio de Janeiro' },
+                        { nome: 'Agência Niterói', lat: -22.8833, lon: -43.1156, banco: 'Bradesco', uf: 'RJ', estado: 'Rio de Janeiro', municipio: 'Niterói' }
+                    ];
+                }
+                
+                if (state.clientes.length === 0) {
+                    addDiagnostic('Nenhum arquivo de clientes encontrado. Usando dados de exemplo.', 'warning');
+                    // Gerar mais clientes de exemplo em volta de São Paulo
+                    state.clientes = [
+                        // Próximos ao centro
+                        { nome: 'Cliente Centro 1', lat: -23.5605, lon: -46.6433 },
+                        { nome: 'Cliente Centro 2', lat: -23.5405, lon: -46.6233 },
+                        { nome: 'Cliente Centro 3', lat: -23.5705, lon: -46.6533 },
+                        { nome: 'Cliente Centro 4', lat: -23.5305, lon: -46.6133 },
+                        
+                        // Próximos a Osasco
+                        { nome: 'Cliente Osasco 1', lat: -23.5420, lon: -46.7697 },
+                        { nome: 'Cliente Osasco 2', lat: -23.5220, lon: -46.7897 },
+                        { nome: 'Cliente Osasco 3', lat: -23.5520, lon: -46.7597 },
+                        
+                        // Zona Norte
+                        { nome: 'Cliente Santana', lat: -23.5049, lon: -46.6289 },
+                        { nome: 'Cliente Tucuruvi', lat: -23.4801, lon: -46.6033 },
+                        
+                        // Zona Sul  
+                        { nome: 'Cliente Santo Amaro', lat: -23.6549, lon: -46.7100 },
+                        { nome: 'Cliente Morumbi', lat: -23.5969, lon: -46.7231 },
+                        
+                        // Zona Leste
+                        { nome: 'Cliente Tatuapé', lat: -23.5401, lon: -46.5763 },
+                        { nome: 'Cliente Penha', lat: -23.5334, lon: -46.5444 },
+                        
+                        // Zona Oeste
+                        { nome: 'Cliente Pinheiros', lat: -23.5614, lon: -46.6823 },
+                        { nome: 'Cliente Butantã', lat: -23.5716, lon: -46.7084 },
+                        
+                        // ABC
+                        { nome: 'Cliente São Bernardo', lat: -23.6914, lon: -46.5651 },
+                        { nome: 'Cliente São Caetano', lat: -23.6229, lon: -46.5510 },
+                        { nome: 'Cliente Diadema', lat: -23.6863, lon: -46.6204 },
+                        
+                        // Guarulhos
+                        { nome: 'Cliente Guarulhos Centro', lat: -23.4543, lon: -46.5337 },
+                        { nome: 'Cliente Cumbica', lat: -23.4321, lon: -46.4690 },
+                        
+                        // Mais distantes
+                        { nome: 'Cliente Mauá', lat: -23.6678, lon: -46.4614 },
+                        { nome: 'Cliente Cotia', lat: -23.6036, lon: -46.9190 },
+                        { nome: 'Cliente Embu', lat: -23.6489, lon: -46.8520 },
+                        { nome: 'Cliente Itapecerica', lat: -23.7168, lon: -46.8493 },
+                        { nome: 'Cliente Ferraz', lat: -23.5406, lon: -46.3684 }
+                    ];
+                }
+                
+                addDiagnostic(`Total carregado: ${state.agencias.length} agências, ${state.clientes.length} clientes`, 'success');
+                
+                // Atualizar UI
+                updateAgenciasSelect();
+                setupFiltros();
+                plotMarkers();
+                updateLegend();
+                
+                // Auto-testes
+                runAutoTests();
+                
+                showLoading(false);
+            }
+            
+            // Auto-testes
+            function runAutoTests() {
+                addDiagnostic('=== AUTO-TESTES ===', 'info');
+                
+                // Teste 1: Parser de coordenadas complexas
+                const teste1 = parseCoordinate('-23.532.174.548.218.000');
+                const esperado1 = -23.532174548218;
+                addDiagnostic(`Teste múltiplos pontos: ${teste1} (esperado: ${esperado1})`, 
+                    Math.abs(teste1 - esperado1) < 0.0001 ? 'success' : 'error');
+                
+                // Teste 2: Vírgula como decimal
+                const teste2 = parseCoordinate('-23,5320');
+                const esperado2 = -23.5320;
+                addDiagnostic(`Teste vírgula decimal: ${teste2} (esperado: ${esperado2})`,
+                    Math.abs(teste2 - esperado2) < 0.0001 ? 'success' : 'error');
+                
+                // Teste 3: Menos unicode
+                const teste3 = parseCoordinate('−46.7797'); // menos unicode
+                const esperado3 = -46.7797;
+                addDiagnostic(`Teste menos unicode: ${teste3} (esperado: ${esperado3})`,
+                    Math.abs(teste3 - esperado3) < 0.0001 ? 'success' : 'error');
+                
+                // Teste 4: Swap de coordenadas
+                const coords4 = validateCoordinates(-46.7797, -23.5320);
+                addDiagnostic(`Teste swap: lat=${coords4?.lat}, lon=${coords4?.lon}`,
+                    coords4 && Math.abs(coords4.lat - (-23.5320)) < 0.0001 ? 'success' : 'error');
+                
+                addDiagnostic('=== FIM DOS TESTES ===', 'info');
+            }
+            
+            // Atualizar select de agências
+            function updateAgenciasSelect() {
+                const select = document.getElementById('agencia-select');
+                select.innerHTML = '<option value="">Selecione uma agência...</option>';
+                
+                // Aplicar filtros
+                state.agenciasFiltradas = state.agencias.filter(agencia => {
+                    // Filtro por banco
+                    if (state.filtros.bancos.length > 0 && !state.filtros.bancos.includes(agencia.banco)) {
+                        return false;
+                    }
+                    // Filtro por UF
+                    if (state.filtros.ufs.length > 0 && !state.filtros.ufs.includes(agencia.uf)) {
+                        return false;
+                    }
+                    // Filtro por município
+                    if (state.filtros.municipios.length > 0 && !state.filtros.municipios.includes(agencia.municipio)) {
+                        return false;
+                    }
+                    return true;
+                });
+                
+                state.agenciasFiltradas.forEach((agencia, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = `${agencia.nome} (${agencia.banco} - ${agencia.municipio}/${agencia.uf})`;
+                    select.appendChild(option);
+                });
+                
+                // Atualizar contagem
+                const contador = document.getElementById('agencias-selecionadas');
+                if (contador) {
+                    contador.textContent = `${state.agenciasFiltradas.length} de ${state.agencias.length} agências`;
+                }
+                
+                // Atualizar lista de todos os clientes
+                updateAllClientsList();
+            }
+            
+            // Configurar filtros
+            function setupFiltros() {
+                // Extrair valores únicos
+                const bancos = [...new Set(state.agencias.map(a => a.banco).filter(b => b))];
+                const ufs = [...new Set(state.agencias.map(a => a.uf).filter(u => u))];
+                const municipios = [...new Set(state.agencias.map(a => a.municipio).filter(m => m))];
+                
+                // Atribuir cores aos bancos
+                bancos.forEach((banco, index) => {
+                    state.cores.bancos[banco] = paletaCores[index % paletaCores.length];
+                });
+                
+                // Criar filtros de banco
+               // Criar filtros de banco
+const bancosList = document.getElementById('bancos-list');
+if (bancosList) {
+  bancosList.innerHTML = '';
+  bancos.sort().forEach(banco => {
+    const count = state.agencias.filter(a => a.banco === banco).length;
+    const item = document.createElement('label');
+    item.className = 'filter-checkbox-item';
+    item.innerHTML = `
+      <input type="checkbox" value="${banco}" checked>
+      <span class="banco-color" style="background: ${state.cores.bancos[banco]}"></span>
+      <span>${banco}</span>
+      <span class="count">(${count})</span>
+    `;
+
+    const checkbox = item.querySelector('input');
+    checkbox.addEventListener('change', () => {
+      // Releia todos os selecionados
+      state.filtros.bancos = Array.from(
+        document.querySelectorAll('#bancos-list input[type="checkbox"]:checked')
+      ).map(cb => cb.value);
+
+      aplicarFiltros();
+    });
+
+    bancosList.appendChild(item);
+  });
+
+  // Inicializa o estado com *todos* selecionados
+  state.filtros.bancos = bancos.slice();
+}
+                
+                // Criar select de UF
+                const ufSelect = document.getElementById('select-uf');
+                if (ufSelect) {
+                    ufSelect.innerHTML = '<option value="">Todos os Estados</option>';
+                    ufs.sort().forEach(uf => {
+                        const option = document.createElement('option');
+                        option.value = uf;
+                        option.textContent = uf;
+                        ufSelect.appendChild(option);
+                    });
+                    
+                    ufSelect.addEventListener('change', function() {
+                        if (this.value) {
+                            state.filtros.ufs = [this.value];
+                            // Filtrar municípios pela UF selecionada
+                            updateMunicipiosList(this.value);
+                        } else {
+                            state.filtros.ufs = [];
+                            updateMunicipiosList();
+                        }
+                        aplicarFiltros();
+                    });
+                }
+                
+                // Criar filtros de município
+                updateMunicipiosList();
+                
+                // Busca de banco
+                const searchBanco = document.getElementById('search-banco');
+                if (searchBanco) {
+                    searchBanco.addEventListener('input', function(e) {
+                        const searchTerm = e.target.value.toLowerCase();
+                        const items = document.querySelectorAll('#bancos-list .filter-checkbox-item');
+                        items.forEach(item => {
+                            const text = item.textContent.toLowerCase();
+                            item.style.display = text.includes(searchTerm) ? 'flex' : 'none';
+                        });
+                    });
+                }
+                
+                // Busca de município
+                const searchMunicipio = document.getElementById('search-municipio');
+                if (searchMunicipio) {
+                    searchMunicipio.addEventListener('input', function(e) {
+                        const searchTerm = e.target.value.toLowerCase();
+                        const items = document.querySelectorAll('#municipios-list .filter-checkbox-item');
+                        items.forEach(item => {
+                            const text = item.textContent.toLowerCase();
+                            item.style.display = text.includes(searchTerm) ? 'flex' : 'none';
+                        });
+                    });
+                }
+            }
+            
+            // Atualizar lista de municípios
+            function updateMunicipiosList(ufFiltro = null) {
+                const municipiosList = document.getElementById('municipios-list');
+                if (!municipiosList) return;
+                
+                let municipios;
+                if (ufFiltro) {
+                    municipios = [...new Set(state.agencias.filter(a => a.uf === ufFiltro).map(a => a.municipio).filter(m => m))];
+                } else {
+                    municipios = [...new Set(state.agencias.map(a => a.municipio).filter(m => m))];
+                }
+                
+                municipiosList.innerHTML = '';
+                municipios.sort().forEach(municipio => {
+                    const count = state.agencias.filter(a => a.municipio === municipio && (!ufFiltro || a.uf === ufFiltro)).length;
+                    const item = document.createElement('label');
+                    item.className = 'filter-checkbox-item';
+                    item.innerHTML = `
+                        <input type="checkbox" value="${municipio}" onchange="toggleFiltro('municipios', '${municipio}')">
+                        <span>${municipio}</span>
+                        <span class="count">(${count})</span>
+                    `;
+                    municipiosList.appendChild(item);
+                });
+            }
+            
+            // Toggle filtro
+            window.toggleFiltro = function(tipo, valor) {
+                const index = state.filtros[tipo].indexOf(valor);
+                if (index > -1) {
+                    state.filtros[tipo].splice(index, 1);
+                } else {
+                    state.filtros[tipo].push(valor);
+                }
+                aplicarFiltros();
+            };
+            
+            // Aplicar filtros
+            function aplicarFiltros() {
+                updateAgenciasSelect();
+                plotMarkers();
+                updateLegend();
+            }
+            
+            // Atualizar legenda
+            function updateLegend() {
+                const legendContent = document.getElementById('legend-content');
+                const legendStats = document.getElementById('legend-stats');
+                
+                if (!legendContent || !legendStats) return;
+                
+                // Contar agências por banco (filtradas)
+                const contagemBancos = {};
+                state.agenciasFiltradas.forEach(agencia => {
+                    if (agencia.banco) {
+                        contagemBancos[agencia.banco] = (contagemBancos[agencia.banco] || 0) + 1;
+                    }
+                });
+                
+                // Criar itens da legenda
+                legendContent.innerHTML = '';
+                Object.entries(contagemBancos).sort((a, b) => b[1] - a[1]).forEach(([banco, count]) => {
+                    const item = document.createElement('div');
+                    item.className = 'legend-item';
+                    item.innerHTML = `
+                        <div class="legend-color" style="background: ${state.cores.bancos[banco]}"></div>
+                        <span>${banco} (${count})</span>
+                    `;
+                    legendContent.appendChild(item);
+                });
+                
+                // Estatísticas
+                const totalUFs = [...new Set(state.agenciasFiltradas.map(a => a.uf))].length;
+                const totalMunicipios = [...new Set(state.agenciasFiltradas.map(a => a.municipio))].length;
+                
+                legendStats.innerHTML = `
+                    <strong>📊 Estatísticas</strong><br>
+                    Total: ${state.agenciasFiltradas.length} agências<br>
+                    Estados: ${totalUFs}<br>
+                    Municípios: ${totalMunicipios}
+                `;
+            }
+            
+            // Atualizar lista de TODOS os clientes
+            function updateAllClientsList() {
+                const container = document.getElementById('all-clients-container');
+                container.innerHTML = '';
+                
+                if (state.clientes.length === 0) {
+                    container.innerHTML = '<p style="opacity: 0.7;">Nenhum cliente disponível.</p>';
+                    return;
+                }
+                
+                // Ordenar clientes por nome
+                const clientesOrdenados = [...state.clientes].sort((a, b) => 
+                    (a.nome || '').localeCompare(b.nome || '')
+                );
+                
+                clientesOrdenados.forEach((cliente, index) => {
+                    const originalIndex = state.clientes.indexOf(cliente);
+                    const item = document.createElement('div');
+                    item.className = 'client-item';
+                    item.dataset.clientName = (cliente.nome || '').toLowerCase();
+                    
+                    item.innerHTML = `
+                        <div class="client-info">
+                            <div class="client-name">${cliente.nome || `Cliente ${originalIndex + 1}`}</div>
+                            <div class="client-distance" style="font-size: 11px; opacity: 0.8;">
+                                📍 ${cliente.lat.toFixed(4)}, ${cliente.lon.toFixed(4)}
+                                ${cliente.fonte ? ' (IBGE)' : ''}
+                            </div>
+                            <div class="client-distance-calc" id="distance-${originalIndex}" style="font-size: 11px; color: #10b981; font-weight: bold;"></div>
+                        </div>
+                        <div class="client-actions">
+                            <button onclick="viewClient(${originalIndex})" 
+                                    title="Visualizar cliente no mapa" 
+                                    style="padding: 4px 6px; font-size: 11px;">👁️</button>
+                            <button onclick="calculateDistanceToClient(${originalIndex})" 
+                                    title="Calcular distância em linha reta" 
+                                    style="padding: 4px 6px; font-size: 11px;">📏</button>
+                            <button onclick="calculateRouteToClient(${originalIndex})" 
+                                    title="Calcular rota de carro" 
+                                    style="padding: 4px 6px; font-size: 11px;">🛣️</button>
+                        </div>
+                    `;
+                    
+                    container.appendChild(item);
+                });
+                
+                // Mostrar sempre a lista
+                document.getElementById('clients-list').style.display = 'block';
+            }
+            
+            // Ver cliente no mapa
+            window.viewClient = function(index) {
+                const cliente = state.clientes[index];
+                if (!cliente) return;
+                
+                // Limpar elementos anteriores
+                state.marcadores.linhas.clearLayers();
+                state.marcadores.rotas.clearLayers();
+                
+                // Centralizar no cliente
+                state.map.setView([cliente.lat, cliente.lon], 15);
+                
+                // Destacar marcador
+                state.marcadores.clientes.eachLayer(marker => {
+                    const data = marker._clienteData;
+                    if (data && data.lat === cliente.lat && data.lon === cliente.lon) {
+                        marker.openPopup();
+                        
+                        // Animar marcador
+                        marker.setIcon(L.divIcon({
+                            className: 'custom-div-icon',
+                            html: `<div style="background: #10b981; color: white; width: 32px; height: 32px; 
+                                   border-radius: 50%; display: flex; align-items: center; 
+                                   justify-content: center; font-size: 16px; box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+                                   border: 3px solid white; animation: pulse 2s infinite;">👁️</div>`,
+                            iconSize: [32, 32],
+                            iconAnchor: [16, 16]
+                        }));
+                        
+                        // Resetar após 3 segundos
+                        setTimeout(() => {
+                            marker.setIcon(L.divIcon({
+                                className: 'custom-div-icon',
+                                html: `<div style="background: #ef4444; color: white; width: 24px; height: 24px; 
+                                       border-radius: 50%; display: flex; align-items: center; 
+                                       justify-content: center; font-size: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+                                       border: 2px solid white;">C</div>`,
+                                iconSize: [24, 24],
+                                iconAnchor: [12, 12]
+                            }));
+                        }, 3000);
+                    }
+                });
+            };
+            
+            // Calcular distância direta para cliente
+            window.calculateDistanceToClient = function(clientIndex) {
+                const cliente = state.clientes[clientIndex];
+                if (!cliente) return;
+                
+                // Verificar se há agência selecionada
+                const agenciaIndex = document.getElementById('agencia-select').value;
+                
+                if (!agenciaIndex) {
+                    alert('Por favor, selecione uma agência primeiro!');
+                    return;
+                }
+                
+                const agencia = state.agencias[agenciaIndex];
+                
+                // Calcular distância
+                const distancia = haversineDistance(agencia.lat, agencia.lon, cliente.lat, cliente.lon);
+                
+                // Limpar visualizações anteriores
+                state.marcadores.linhas.clearLayers();
+                state.marcadores.rotas.clearLayers();
+                
+                // Desenhar linha reta
+                const line = L.polyline([
+                    [agencia.lat, agencia.lon],
+                    [cliente.lat, cliente.lon]
+                ], {
+                    color: '#667eea',
+                    weight: 3,
+                    opacity: 0.7,
+                    dashArray: '10, 10'
+                });
+                
+                state.marcadores.linhas.addLayer(line);
+                
+                // Adicionar marcadores especiais
+                const startMarker = L.marker([agencia.lat, agencia.lon], {
+                    icon: L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div style="background: #667eea; color: white; width: 36px; height: 36px; 
+                               border-radius: 50%; display: flex; align-items: center; 
+                               justify-content: center; font-weight: bold; box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+                               border: 3px solid white;">🏢</div>`,
+                        iconSize: [36, 36],
+                        iconAnchor: [18, 18]
+                    })
+                }).bindPopup(`<strong>${agencia.nome}</strong>`);
+                
+                const endMarker = L.marker([cliente.lat, cliente.lon], {
+                    icon: L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div style="background: #10b981; color: white; width: 36px; height: 36px; 
+                               border-radius: 50%; display: flex; align-items: center; 
+                               justify-content: center; font-weight: bold; box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+                               border: 3px solid white;">📍</div>`,
+                        iconSize: [36, 36],
+                        iconAnchor: [18, 18]
+                    })
+                }).bindPopup(`<strong>${cliente.nome}</strong>`);
+                
+                state.marcadores.linhas.addLayer(startMarker);
+                state.marcadores.linhas.addLayer(endMarker);
+                
+                // Mostrar popup com distância
+                const center = L.latLngBounds([
+                    [agencia.lat, agencia.lon],
+                    [cliente.lat, cliente.lon]
+                ]).getCenter();
+                
+                L.popup()
+                    .setLatLng(center)
+                    .setContent(`
+                        <div style="text-align: center;">
+                            <strong>📏 Distância Direta</strong><br>
+                            <div style="margin: 10px 0;">
+                                ${agencia.nome}<br>↓<br>${cliente.nome}
+                            </div>
+                            <div style="background: #f0f0f0; padding: 10px; border-radius: 5px; margin-top: 10px;">
+                                <strong style="font-size: 18px; color: #667eea;">${distancia.toFixed(2)} km</strong>
+                            </div>
+                        </div>
+                    `)
+                    .openOn(state.map);
+                
+                // Ajustar visualização
+                const bounds = L.latLngBounds([
+                    [agencia.lat, agencia.lon],
+                    [cliente.lat, cliente.lon]
+                ]);
+                state.map.fitBounds(bounds, { padding: [100, 100] });
+                
+                // Atualizar a distância na lista
+                const distElement = document.getElementById(`distance-${clientIndex}`);
+                if (distElement) {
+                    distElement.textContent = `📏 ${distancia.toFixed(2)} km da agência`;
+                }
+                
+                addDiagnostic(`Distância ${agencia.nome} → ${cliente.nome}: ${distancia.toFixed(2)} km`, 'success');
+            };
+            
+            // Calcular rota para cliente específico
+            window.calculateRouteToClient = async function(clientIndex) {
+                const cliente = state.clientes[clientIndex];
+                if (!cliente) return;
+                
+                // Verificar se há agência selecionada
+                const agenciaIndex = document.getElementById('agencia-select').value;
+                if (!agenciaIndex) {
+                    // Se não há agência selecionada, usar a mais próxima
+                    let closestAgencia = null;
+                    let minDistance = Infinity;
+                    
+                    state.agencias.forEach(agencia => {
+                        const dist = haversineDistance(agencia.lat, agencia.lon, cliente.lat, cliente.lon);
+                        if (dist < minDistance) {
+                            minDistance = dist;
+                            closestAgencia = agencia;
+                        }
+                    });
+                    
+                    if (!closestAgencia) {
+                        alert('Nenhuma agência disponível para calcular rota!');
+                        return;
+                    }
+                    
+                    state.agenciaAtual = closestAgencia;
+                    addDiagnostic(`Usando agência mais próxima: ${closestAgencia.nome} (${minDistance.toFixed(2)}km)`, 'info');
+                } else {
+                    state.agenciaAtual = state.agencias[agenciaIndex];
+                }
+                
+                const agencia = state.agenciaAtual;
+                
+                // Verificar cache
+                const cacheKey = `${agencia.lat},${agencia.lon}-${cliente.lat},${cliente.lon}`;
+                if (state.cache.rotas.has(cacheKey)) {
+                    const cached = state.cache.rotas.get(cacheKey);
+                    displayRoute(cached, agencia, cliente);
+                    return;
+                }
+                
+                showLoading(true);
+                
+                try {
+                    const url = `https://router.project-osrm.org/route/v1/driving/${agencia.lon},${agencia.lat};${cliente.lon},${cliente.lat}?overview=full&geometries=geojson`;
+                    
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    
+                    if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+                        const route = data.routes[0];
+                        const result = {
+                            geometry: route.geometry,
+                            distance: (route.distance / 1000).toFixed(2), // km
+                            duration: Math.round(route.duration / 60) // minutos
+                        };
+                        
+                        // Cachear
+                        state.cache.rotas.set(cacheKey, result);
+                        
+                        displayRoute(result, agencia, cliente);
+                        
+                        addDiagnostic(`Rota: ${agencia.nome} → ${cliente.nome}: ${result.distance}km, ${result.duration}min`, 'success');
+                    } else {
+                        alert('Não foi possível calcular a rota. Tente novamente.');
+                        addDiagnostic('Erro ao calcular rota', 'error');
+                    }
+                } catch (error) {
+                    alert('Erro ao calcular rota: ' + error.message);
+                    addDiagnostic(`Erro OSRM: ${error.message}`, 'error');
+                } finally {
+                    showLoading(false);
+                }
+            };
+            
+            // Exibir rota no mapa (melhorada)
+            function displayRoute(routeData, agencia, cliente) {
+                // Limpar rotas anteriores
+                state.marcadores.rotas.clearLayers();
+                state.marcadores.linhas.clearLayers();
+                
+                // Desenhar rota
+                const routeLine = L.geoJSON(routeData.geometry, {
+                    style: {
+                        color: '#10b981',
+                        weight: 4,
+                        opacity: 0.8
+                    }
+                });
+                
+                state.marcadores.rotas.addLayer(routeLine);
+                
+                // Adicionar marcadores de início e fim
+                const startMarker = L.marker([agencia.lat, agencia.lon], {
+                    icon: L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div style="background: #667eea; color: white; width: 36px; height: 36px; 
+                               border-radius: 50%; display: flex; align-items: center; 
+                               justify-content: center; font-weight: bold; box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+                               border: 3px solid white;">🏢</div>`,
+                        iconSize: [36, 36],
+                        iconAnchor: [18, 18]
+                    })
+                }).bindPopup(`<strong>Início: ${agencia.nome}</strong>`);
+                
+                const endMarker = L.marker([cliente.lat, cliente.lon], {
+                    icon: L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div style="background: #10b981; color: white; width: 36px; height: 36px; 
+                               border-radius: 50%; display: flex; align-items: center; 
+                               justify-content: center; font-weight: bold; box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+                               border: 3px solid white;">📍</div>`,
+                        iconSize: [36, 36],
+                        iconAnchor: [18, 18]
+                    })
+                }).bindPopup(`<strong>Destino: ${cliente.nome}</strong>`);
+                
+                state.marcadores.rotas.addLayer(startMarker);
+                state.marcadores.rotas.addLayer(endMarker);
+                
+                // Popup com informações da rota
+                const bounds = routeLine.getBounds();
+                const center = bounds.getCenter();
+                
+                L.popup()
+                    .setLatLng(center)
+                    .setContent(`
+                        <div style="text-align: center;">
+                            <strong>🛣️ Rota Calculada</strong><br>
+                            <div style="margin: 10px 0;">
+                                ${agencia.nome}<br>↓<br>${cliente.nome}
+                            </div>
+                            <div style="background: #f0f0f0; padding: 10px; border-radius: 5px; margin-top: 10px;">
+                                📏 <strong>${routeData.distance} km</strong><br>
+                                ⏱️ <strong>${routeData.duration} minutos</strong>
+                            </div>
+                        </div>
+                    `)
+                    .openOn(state.map);
+                
+                // Ajustar visualização
+                state.map.fitBounds(bounds, { padding: [80, 80] });
+            }
+            
+            // Plotar marcadores no mapa
+            function plotMarkers() {
+                // Limpar marcadores existentes
+                state.marcadores.agencias.clearLayers();
+                state.marcadores.clientes.clearLayers();
+                
+                const bounds = [];
+                let agenciasPlotadas = 0;''
+                let clientesPlotados = 0;
+                
+                // Marcadores de agências (coloridos por banco)
+                state.agenciasFiltradas.forEach(agencia => {
+                    if (agencia.lat && agencia.lon) {
+                        const cor = state.cores.bancos[agencia.banco] || '#667eea';
+                        const marker = L.marker([agencia.lat, agencia.lon], {
+                            icon: L.divIcon({
+                                className: 'custom-div-icon',
+                                html: `<div style="background: ${cor}; color: white; width: 30px; height: 30px; 
+                                       border-radius: 50%; display: flex; align-items: center; 
+                                       justify-content: center; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+                                       border: 2px solid white;">A</div>`,
+                                iconSize: [30, 30],
+                                iconAnchor: [15, 15]
+                            })
+                        }).bindPopup(`
+                            <strong>${agencia.nome}</strong><br>
+                            <strong>Banco:</strong> ${agencia.banco || 'N/A'}<br>
+                            <strong>Município:</strong> ${agencia.municipio || 'N/A'}<br>
+                            <strong>UF:</strong> ${agencia.uf || 'N/A'}<br>
+                            <strong>Coordenadas:</strong><br>
+                            Lat: ${agencia.lat.toFixed(6)}<br>
+                            Lon: ${agencia.lon.toFixed(6)}
+                        `);
+                        
+                        state.marcadores.agencias.addLayer(marker);
+                        bounds.push([agencia.lat, agencia.lon]);
+                        agenciasPlotadas++;
+                    }
+                });
+                
+                // Marcadores de clientes (vermelho)
+                state.clientes.forEach((cliente, index) => {
+                    if (cliente.lat && cliente.lon) {
+                        const marker = L.marker([cliente.lat, cliente.lon], {
+                            icon: L.divIcon({
+                                className: 'custom-div-icon',
+                                html: `<div style="background: #ef4444; color: white; width: 24px; height: 24px; 
+                                       border-radius: 50%; display: flex; align-items: center; 
+                                       justify-content: center; font-size: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+                                       border: 2px solid white;">C</div>`,
+                                iconSize: [24, 24],
+                                iconAnchor: [12, 12]
+                            })
+                        }).bindPopup(`<strong>${cliente.nome || `Cliente ${index + 1}`}</strong><br>
+                                     Lat: ${cliente.lat.toFixed(6)}<br>
+                                     Lon: ${cliente.lon.toFixed(6)}
+                                     ${cliente.fonte ? '<br>Fonte: ' + cliente.fonte : ''}`);
+                        
+                        marker._clienteData = cliente;
+                        state.marcadores.clientes.addLayer(marker);
+                        bounds.push([cliente.lat, cliente.lon]);
+                        clientesPlotados++;
+                    }
+                });
+                
+                // Ajustar visualização
+                if (bounds.length > 0) {
+                    try {
+                        state.map.fitBounds(bounds, { padding: [50, 50] });
+                    } catch (e) {
+                        // Se falhar o fitBounds, centralizar em São Paulo
+                        state.map.setView([-23.5505, -46.6333], 11);
+                        addDiagnostic('Usando vista padrão de São Paulo', 'info');
+                    }
+                }
+                
+                addDiagnostic(`Marcadores plotados: ${agenciasPlotadas} agências filtradas, ${clientesPlotados} clientes`, 'success');
+                
+                // Debug: listar alguns pontos
+                if (state.agenciasFiltradas.length > 0) {
+                    addDiagnostic(`Agências por banco:`, 'info');
+                    const contagemBancos = {};
+                    state.agenciasFiltradas.forEach(a => {
+                        contagemBancos[a.banco] = (contagemBancos[a.banco] || 0) + 1;
+                    });
+                    Object.entries(contagemBancos).forEach(([banco, count]) => {
+                        addDiagnostic(`  ${banco}: ${count} agências`, 'info');
+                    });
+                }
+            }
+            
+            // Calcular distância Haversine
+            function haversineDistance(lat1, lon1, lat2, lon2) {
+                const R = 6371; // Raio da Terra em km
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLon = (lon2 - lon1) * Math.PI / 180;
+                const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                         Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                         Math.sin(dLon/2) * Math.sin(dLon/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                return R * c;
+            }
+            
+            // Aplicar filtro de raio
+            function aplicarRaio() {
+                const agenciaIndex = document.getElementById('agencia-select').value;
+                if (!agenciaIndex) {
+                    alert('Selecione uma agência primeiro!');
+                    return;
+                }
+                
+                const agencia = state.agenciasFiltradas[agenciaIndex];
+                const raio = parseFloat(document.getElementById('raio-input').value);
+                
+                state.agenciaAtual = agencia;
+                
+                // Limpar elementos anteriores
+                if (state.marcadores.circulo) {
+                    state.map.removeLayer(state.marcadores.circulo);
+                }
+                state.marcadores.linhas.clearLayers();
+                state.marcadores.rotas.clearLayers();
+                
+                // Desenhar círculo
+                state.marcadores.circulo = L.circle([agencia.lat, agencia.lon], {
+                    radius: raio * 1000, // Converter km para metros
+                    color: state.cores.bancos[agencia.banco] || '#667eea',
+                    fillColor: state.cores.bancos[agencia.banco] || '#667eea',
+                    fillOpacity: 0.1,
+                    weight: 2
+                }).addTo(state.map);
+                
+                // Filtrar clientes dentro do raio
+                state.clientesFiltrados = [];
+                
+                state.clientes.forEach(cliente => {
+                    if (cliente.lat && cliente.lon) {
+                        const distancia = haversineDistance(agencia.lat, agencia.lon, cliente.lat, cliente.lon);
+                        if (distancia <= raio) {
+                            state.clientesFiltrados.push({
+                                ...cliente,
+                                distancia: distancia
+                            });
+                        }
+                    }
+                });
+                
+                // Ordenar por distância
+                state.clientesFiltrados.sort((a, b) => a.distancia - b.distancia);
+                
+                // Atualizar marcadores de clientes
+                state.marcadores.clientes.eachLayer(marker => {
+                    const cliente = marker._clienteData;
+                    const isInRadius = state.clientesFiltrados.some(c => 
+                        c.lat === cliente.lat && c.lon === cliente.lon
+                    );
+                    
+                    if (isInRadius) {
+                        marker.setIcon(L.divIcon({
+                            className: 'custom-div-icon',
+                            html: `<div style="background: #10b981; color: white; width: 24px; height: 24px; 
+                                   border-radius: 50%; display: flex; align-items: center; 
+                                   justify-content: center; font-size: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">✓</div>`,
+                            iconSize: [24, 24],
+                            iconAnchor: [12, 12]
+                        }));
+                    } else {
+                        marker.setIcon(L.divIcon({
+                            className: 'custom-div-icon',
+                            html: `<div style="background: #ef4444; color: white; width: 24px; height: 24px; 
+                                   border-radius: 50%; display: flex; align-items: center; 
+                                   justify-content: center; font-size: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">C</div>`,
+                            iconSize: [24, 24],
+                            iconAnchor: [12, 12]
+                        }));
+                    }
+                });
+                
+                // Atualizar lista
+                updateClientsList();
+                
+                // Ajustar visualização
+                state.map.fitBounds(state.marcadores.circulo.getBounds(), { padding: [50, 50] });
+                
+                addDiagnostic(`Filtrados: ${state.clientesFiltrados.length} clientes no raio de ${raio}km da ${agencia.nome} (${agencia.banco})`, 'success');
+            }
+            
+            // Atualizar lista de clientes
+            function updateClientsList() {
+                const container = document.getElementById('clients-container');
+                const filteredTitle = document.getElementById('filtered-title');
+                
+                container.innerHTML = '';
+                
+                if (state.clientesFiltrados.length === 0) {
+                    filteredTitle.style.display = 'none';
+                    return;
+                }
+                
+                filteredTitle.style.display = 'block';
+                
+                state.clientesFiltrados.forEach((cliente, index) => {
+                    // Encontrar o índice original do cliente
+                    const originalIndex = state.clientes.findIndex(c => 
+                        c.lat === cliente.lat && c.lon === cliente.lon && c.nome === cliente.nome
+                    );
+                    
+                    const item = document.createElement('div');
+                    item.className = 'client-item';
+                    item.style.background = 'rgba(16, 185, 129, 0.2)';
+                    item.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+                    
+                    item.innerHTML = `
+                        <div class="client-info">
+                            <div class="client-name">✅ ${cliente.nome || `Cliente ${originalIndex + 1}`}</div>
+                            <div class="client-distance">📏 ${cliente.distancia.toFixed(2)} km (linha reta)</div>
+                        </div>
+                        <div class="client-actions">
+                            <button onclick="viewClient(${originalIndex})" title="Ver no mapa" style="padding: 4px 6px; font-size: 11px;">👁️</button>
+                            <button onclick="calculateDistanceToClient(${originalIndex})" title="Distância direta" style="padding: 4px 6px; font-size: 11px;">📏</button>
+                            <button onclick="calculateRouteToClient(${originalIndex})" title="Calcular rota" style="padding: 4px 6px; font-size: 11px;">🛣️</button>
+                        </div>
+                    `;
+                    
+                    container.appendChild(item);
+                });
+            }
+            
+            // Zoom para cliente
+            window.zoomToClient = function(index) {
+                const cliente = state.clientesFiltrados[index];
+                const agencia = state.agenciaAtual;
+                
+                if (!cliente || !agencia) return;
+                
+                // Limpar linhas anteriores
+                state.marcadores.linhas.clearLayers();
+                
+                // Desenhar linha reta
+                const line = L.polyline([
+                    [agencia.lat, agencia.lon],
+                    [cliente.lat, cliente.lon]
+                ], {
+                    color: '#667eea',
+                    weight: 3,
+                    opacity: 0.7,
+                    dashArray: '10, 10'
+                });
+                
+                state.marcadores.linhas.addLayer(line);
+                
+                // Ajustar visualização
+                const bounds = L.latLngBounds([
+                    [agencia.lat, agencia.lon],
+                    [cliente.lat, cliente.lon]
+                ]);
+                
+                state.map.fitBounds(bounds, { padding: [100, 100] });
+            };
+            
+            // Calcular rota via OSRM
+            window.calculateRoute = async function(index) {
+                const cliente = state.clientesFiltrados[index];
+                const agencia = state.agenciaAtual;
+                
+                if (!cliente || !agencia) return;
+                
+                // Verificar cache
+                const cacheKey = `${agencia.lat},${agencia.lon}-${cliente.lat},${cliente.lon}`;
+                if (state.cache.rotas.has(cacheKey)) {
+                    const cached = state.cache.rotas.get(cacheKey);
+                    displayRoute(cached);
+                    return;
+                }
+                
+                showLoading(true);
+                
+                try {
+                    const url = `https://router.project-osrm.org/route/v1/driving/${agencia.lon},${agencia.lat};${cliente.lon},${cliente.lat}?overview=full&geometries=geojson`;
+                    
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    
+                    if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+                        const route = data.routes[0];
+                        const result = {
+                            geometry: route.geometry,
+                            distance: (route.distance / 1000).toFixed(2), // km
+                            duration: Math.round(route.duration / 60) // minutos
+                        };
+                        
+                        // Cachear
+                        state.cache.rotas.set(cacheKey, result);
+                        
+                        displayRoute(result);
+                        
+                        addDiagnostic(`Rota calculada: ${result.distance}km, ${result.duration}min`, 'success');
+                    } else {
+                        alert('Não foi possível calcular a rota.');
+                        addDiagnostic('Erro ao calcular rota', 'error');
+                    }
+                } catch (error) {
+                    alert('Erro ao calcular rota: ' + error.message);
+                    addDiagnostic(`Erro OSRM: ${error.message}`, 'error');
+                } finally {
+                    showLoading(false);
+                }
+            };
+            
+            // Exibir rota no mapa
+            function displayRoute(routeData) {
+                // Limpar rotas anteriores
+                state.marcadores.rotas.clearLayers();
+                
+                // Desenhar rota
+                const routeLine = L.geoJSON(routeData.geometry, {
+                    style: {
+                        color: '#10b981',
+                        weight: 4,
+                        opacity: 0.8
+                    }
+                });
+                
+                state.marcadores.rotas.addLayer(routeLine);
+                
+                // Popup com informações
+                const center = routeLine.getBounds().getCenter();
+                L.popup()
+                    .setLatLng(center)
+                    .setContent(`<strong>Rota</strong><br>
+                               📏 Distância: ${routeData.distance} km<br>
+                               ⏱️ Tempo: ${routeData.duration} min`)
+                    .openOn(state.map);
+                
+                // Ajustar visualização
+                state.map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+            }
+            
+            // Exportar CSV
+            function exportarCSV() {
+                if (state.clientesFiltrados.length === 0) {
+                    alert('Nenhum cliente filtrado para exportar!');
+                    return;
+                }
+                
+                const agencia = state.agenciaAtual;
+                if (!agencia) {
+                    alert('Selecione uma agência primeiro!');
+                    return;
+                }
+                
+                // Preparar dados
+                const csvData = state.clientesFiltrados.map(cliente => ({
+                    agencia: agencia.nome,
+                    cliente: cliente.nome,
+                    cliente_lat: cliente.lat,
+                    cliente_lon: cliente.lon,
+                    distancia_km: cliente.distancia.toFixed(2)
+                }));
+                
+                // Converter para CSV
+                const csv = Papa.unparse(csvData);
+                
+                // Download
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                
+                link.setAttribute('href', url);
+                link.setAttribute('download', `clientes_raio_${new Date().toISOString().slice(0,10)}.csv`);
+                link.style.visibility = 'hidden';
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                addDiagnostic(`CSV exportado: ${csvData.length} registros`, 'success');
+            }
+            
+            // Limpar seleção
+            function limparSelecao() {
+                // Limpar círculo
+                if (state.marcadores.circulo) {
+                    state.map.removeLayer(state.marcadores.circulo);
+                    state.marcadores.circulo = null;
+                }
+                
+                // Limpar linhas e rotas
+                state.marcadores.linhas.clearLayers();
+                state.marcadores.rotas.clearLayers();
+                
+                // Resetar clientes filtrados
+                state.clientesFiltrados = [];
+                state.agenciaAtual = null;
+                
+                // Resetar marcadores
+                plotMarkers();
+                
+                // Limpar lista filtrada mas manter lista completa
+                document.getElementById('filtered-title').style.display = 'none';
+                document.getElementById('clients-container').innerHTML = '';
+                
+                // Resetar select
+                document.getElementById('agencia-select').value = '';
+                
+                // Limpar campo de busca
+                document.getElementById('search-clients').value = '';
+                
+                // Limpar distâncias calculadas
+                state.clientes.forEach((cliente, index) => {
+                    const distElement = document.getElementById(`distance-${index}`);
+                    if (distElement) {
+                        distElement.textContent = '';
+                    }
+                });
+                
+                // Reexibir todos os clientes
+                const items = document.querySelectorAll('#all-clients-container .client-item');
+                items.forEach(item => {
+                    item.style.display = 'flex';
+                });
+                
+                // Resetar visualização do mapa
+                const bounds = [];
+                state.agencias.forEach(ag => bounds.push([ag.lat, ag.lon]));
+                state.clientes.forEach(cl => bounds.push([cl.lat, cl.lon]));
+                if (bounds.length > 0) {
+                    state.map.fitBounds(bounds, { padding: [50, 50] });
+                }
+                
+                addDiagnostic('Seleção limpa e mapa resetado', 'info');
+            }
+            
+            // Loading
+            function showLoading(show) {
+                document.getElementById('loading').classList.toggle('active', show);
+            }
+            
+            // Event Listeners
+            document.getElementById('raio-slider').addEventListener('input', function() {
+                document.getElementById('raio-input').value = this.value;
+            });
+            
+            document.getElementById('raio-input').addEventListener('input', function() {
+                document.getElementById('raio-slider').value = this.value;
+            });
+            
+            // Quando selecionar uma agência, calcular distâncias automaticamente
+            document.getElementById('agencia-select').addEventListener('change', function() {
+                const agenciaIndex = this.value;
+                if (agenciaIndex) {
+                    const agencia = state.agencias[agenciaIndex];
+                    addDiagnostic(`Agência selecionada: ${agencia.nome}`, 'info');
+                    
+                    // Destacar agência selecionada no mapa
+                    state.marcadores.agencias.eachLayer(marker => {
+                        const latlng = marker.getLatLng();
+                        if (Math.abs(latlng.lat - agencia.lat) < 0.0001 && Math.abs(latlng.lng - agencia.lon) < 0.0001) {
+                            marker.setIcon(L.divIcon({
+                                className: 'custom-div-icon',
+                                html: `<div style="background: #10b981; color: white; width: 40px; height: 40px; 
+                                       border-radius: 50%; display: flex; align-items: center; 
+                                       justify-content: center; font-weight: bold; box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+                                       border: 3px solid white; animation: pulse 2s infinite;">A</div>`,
+                                iconSize: [40, 40],
+                                iconAnchor: [20, 20]
+                            }));
+                            marker.openPopup();
+                        } else {
+                            // Resetar outras agências
+                            marker.setIcon(L.divIcon({
+                                className: 'custom-div-icon',
+                                html: `<div style="background: #667eea; color: white; width: 30px; height: 30px; 
+                                       border-radius: 50%; display: flex; align-items: center; 
+                                       justify-content: center; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+                                       border: 2px solid white;">A</div>`,
+                                iconSize: [30, 30],
+                                iconAnchor: [15, 15]
+                            }));
+                        }
+                    });
+                    
+                    // Calcular e mostrar distâncias para todos os clientes
+                    state.clientes.forEach((cliente, index) => {
+                        const distancia = haversineDistance(agencia.lat, agencia.lon, cliente.lat, cliente.lon);
+                        const distElement = document.getElementById(`distance-${index}`);
+                        if (distElement) {
+                            distElement.textContent = `📏 ${distancia.toFixed(2)} km da agência`;
+                        }
+                    });
+                    
+                    // Centralizar no mapa
+                    state.map.setView([agencia.lat, agencia.lon], 12);
+                } else {
+                    // Limpar distâncias e resetar marcadores se nenhuma agência estiver selecionada
+                    state.clientes.forEach((cliente, index) => {
+                        const distElement = document.getElementById(`distance-${index}`);
+                        if (distElement) {
+                            distElement.textContent = '';
+                        }
+                    });
+                    
+                    // Resetar todas as agências
+                    state.marcadores.agencias.eachLayer(marker => {
+                        marker.setIcon(L.divIcon({
+                            className: 'custom-div-icon',
+                            html: `<div style="background: #667eea; color: white; width: 30px; height: 30px; 
+                                   border-radius: 50%; display: flex; align-items: center; 
+                                   justify-content: center; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+                                   border: 2px solid white;">A</div>`,
+                            iconSize: [30, 30],
+                            iconAnchor: [15, 15]
+                        }));
+                    });
+                }
+            });
+            
+            document.getElementById('aplicar-raio').addEventListener('click', aplicarRaio);
+            document.getElementById('exportar-csv').addEventListener('click', exportarCSV);
+            document.getElementById('limpar-selecao').addEventListener('click', limparSelecao);
+            
+            document.getElementById('diagnostics-toggle').addEventListener('click', function() {
+                document.getElementById('diagnostics-panel').classList.toggle('active');
+            });
+            
+            // Evento de busca de clientes
+            const searchInput = document.getElementById('search-clients');
+            if (searchInput) {
+                searchInput.addEventListener('input', function(e) {
+                    const searchTerm = e.target.value.toLowerCase();
+                    const items = document.querySelectorAll('#all-clients-container .client-item');
+                    
+                    items.forEach(item => {
+                        const name = item.dataset.clientName || '';
+                        if (name.includes(searchTerm)) {
+                            item.style.display = 'flex';
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    });
+                });
+            }
+            
+            // Inicialização
+            initMap();
+            await loadData();
+            
+            addDiagnostic('Sistema inicializado com sucesso!', 'success');
+        });
+    </script>
+</body>
+</html>
